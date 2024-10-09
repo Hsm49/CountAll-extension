@@ -1,0 +1,29 @@
+{
+    "manifest_version": 3,
+    "name": "CountAll",
+    "description": "Gestor de tiempo y bloqueo de sitios",
+    "version": "1.1",
+    "permissions": [
+        "tabs",
+        "activeTab",
+        "storage",
+        "webRequest",      
+        "webRequestBlocking",  
+        "<all_urls>"
+    ],
+    "action":{
+        "default_popup": "popup.html",
+        "default_icon":{
+            "128": "icons/icon.png"
+        }
+    },
+    "background": {
+        "service_worker": "background.js"
+    },
+    "icons": {
+        "128": "icons/icon.png"
+      },
+    "host_permissions": [
+        "*://*/*"
+    ]
+}
