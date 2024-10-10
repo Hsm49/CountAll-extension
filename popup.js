@@ -1,40 +1,40 @@
 document.addEventListener('DOMContentLoaded', function() {
-    chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+    const timeSpentElement = document.getElementById('timeSpent');
+    const statusElement = document.getElementById('status');
+
+    if (!timeSpentElement) {
+        console.error('Elemento #timeSpent no encontrado en el DOM');
+        return;
+    }
+
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs.length === 0) {
+            console.error('No se encontraron pestañas activas');
+            return;
+        }
         let url = new URL(tabs[0].url);
         let siteName = url.hostname;
 
-        // Mostrar el tiempo pasado en el sitio actual
         chrome.storage.local.get([siteName], function(result) {
             if (result[siteName]) {
                 let elapsedTime = result[siteName].totalTime + (Date.now() - result[siteName].startTime);
-                document.getElementById('timeSpent').textContent = `Has pasado ${msToTime(elapsedTime)} en el sitio ${siteName}.`;
+                timeSpentElement.textContent = `Has pasado ${msToTime(elapsedTime)} en el sitio ${siteName}.`;
             } else {
-                document.getElementById('timeSpent').textContent = 'No se ha podido obtener el tiempo transcurrido en este sitio web.';
+                timeSpentElement.textContent = 'No se ha podido obtener el tiempo transcurrido en este sitio web.';
             }
-        });
 
-        // Verificar si el sitio ya está en la lista negra
-        chrome.storage.local.get(['blacklist'], function(result) {
-            let blacklist = result.blacklist || [];
-            if (blacklist.includes(siteName) || blacklist.some(domain => siteName.endsWith(`.${domain}`))) {
-                document.getElementById('blacklistStatus').textContent = `Este sitio está actualmente bloqueado.`;
-            }
-        });
-
-        // Botón para añadir a la lista negra
-        document.getElementById('addBlacklist').addEventListener('click', function() {
-            chrome.runtime.sendMessage({action: 'addToBlacklist', siteName: siteName}, function(response) {
-                if (response.success) {
-                    document.getElementById('blacklistStatus').textContent = `El sitio ${siteName} ha sido bloqueado.`;
+            // Enviar mensaje para obtener estado
+            chrome.runtime.sendMessage({request: "getStatus", siteName: siteName}, (response) => {
+                if (chrome.runtime.lastError) {
+                    console.error('Error al enviar mensaje:', chrome.runtime.lastError.message);
+                    statusElement.textContent = 'Estado: desconocido';
+                    return;
                 }
-            });
-        });
 
-        // Botón para eliminar de la lista negra
-        document.getElementById('removeBlacklist').addEventListener('click', function() {
-            chrome.runtime.sendMessage({action: 'removeFromBlacklist', siteName: siteName}, function(response) {
-                if (response.success) {
-                    document.getElementById('blacklistStatus').textContent = `El sitio ${siteName} ha sido desbloqueado.`;
+                if (response && response.status) {
+                    statusElement.textContent = `Estado: ${response.status}`;
+                } else {
+                    statusElement.textContent = 'Estado: desconocido';
                 }
             });
         });
@@ -42,24 +42,19 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 
+
 function msToTime(duration) {
     let seconds = Math.floor((duration / 1000) % 60),
         minutes = Math.floor((duration / (1000 * 60)) % 60),
         hours = Math.floor((duration / (1000 * 60 * 60)) % 24);
 
-    hours = (hours < 10) ? "0" + hours : hours;
-    minutes = (minutes < 10) ? "0" + minutes : minutes;
-    seconds = (seconds < 10) ? "0" + seconds : seconds;
-
-    return hours + ":" + minutes + ":" + seconds;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
 function updateTime() {
     chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-        if (tabs.length === 0) return; // Verifica que haya una pestaña activa
-
         let url = new URL(tabs[0].url);
-        let siteName = url.hostname;
+        let siteName = url.hostname.replace('www.', ''); // Normaliza el nombre del sitio
         chrome.storage.local.get([siteName], function(result) {
             if (result[siteName]) {
                 let elapsedTime = result[siteName].totalTime + (Date.now() - result[siteName].startTime);
@@ -71,6 +66,5 @@ function updateTime() {
     });
 }
 
-// Actualiza el tiempo cada segundo solo si la pestaña está activa
+// Actualiza el tiempo cada segundo
 setInterval(updateTime, 1000);
-
