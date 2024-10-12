@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estadísticas de uso</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            width: 400px;
+        }
+        h1 {
+            text-align: center;
+        }
+        select {
+            margin-bottom: 10px;
+        }
+        #statsContainer {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .site-stat {
+            margin-bottom: 10px;
+            padding: 5px;
+            border-bottom: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <h1>Estadísticas de uso</h1>
+    <select id="timeRange">
+        <option value="daily">Uso diario</option>
+        <option value="weekly">Uso semanal</option>
+        <option value="monthly">Uso mensual</option>
+        <option value="all">Uso total</option>
+    </select>
+    <div id="statsContainer"></div>
+    <script src="statistics.js"></script>
+</body>
+</html>

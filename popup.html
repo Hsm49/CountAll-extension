@@ -1,12 +1,23 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <link rel="stylesheet" type="text/css" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CountAll</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Contador de tiempo de sitio web</h1>
+    <div class="logo">
+        <img src="icons/icon.png" alt="Logo" class="logo-img">
+    </div>
+    <p id="date">Fecha: Cargando...</p>
     <p id="timeSpent">Cargando...</p>
-
+    <p id="status">Estado: Cargando...</p>
+    <div class="buttons">
+        <button id="blockCurrentSiteButton">Bloquear sitio actual</button>
+        <button id="statsButton">Ver estadísticas</button>
+        <button id="blocklistButton" class="blockButton">Gestionar sitios bloqueados</button>
+    </div>
     <script src="popup.js"></script>
 </body>
 </html>

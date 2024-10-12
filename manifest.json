@@ -6,7 +6,8 @@
     "permissions": [
         "tabs",
         "activeTab",
-        "storage"
+        "storage",
+        "webNavigation"
     ],
     "action":{
         "default_popup": "popup.html",
@@ -19,11 +20,17 @@
     },
     "icons": {
         "128": "icons/icon.png"
-      },
-      "content_scripts": [
+    },
+    "content_scripts": [
         {
         "matches": ["<all_urls>"],
         "js": ["content.js"]
         }
-        ]
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": ["statistics.html", "blocklist.html", "blocked.html"],
+            "matches": ["<all_urls>"]
+        }
+    ]
 }

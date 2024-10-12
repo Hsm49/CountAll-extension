@@ -1,47 +1,91 @@
-document.addEventListener('DOMContentLoaded', function() {
-    const timeSpentElement = document.getElementById('timeSpent');
-    const statusElement = document.getElementById('status');
+let timeSpentElement;
+let statusElement;
+let dateElement;
+let updateInterval;
 
-    if (!timeSpentElement) {
-        console.error('Elemento #timeSpent no encontrado en el DOM');
+document.addEventListener('DOMContentLoaded', function() {
+    timeSpentElement = document.getElementById('timeSpent');
+    statusElement = document.getElementById('status');
+    dateElement = document.getElementById('date');
+
+    if (!timeSpentElement || !statusElement || !dateElement) {
+        console.error('Elementos no encontrados en el DOM');
         return;
     }
 
+    const statsButton = document.getElementById('statsButton');
+    const blocklistButton = document.getElementById('blocklistButton');
+    const blockCurrentSiteButton = document.getElementById('blockCurrentSiteButton');
+
+    statsButton.addEventListener('click', () => {
+        chrome.tabs.create({url: 'statistics.html'});
+    });
+
+    blocklistButton.addEventListener('click', () => {
+        chrome.tabs.create({url: 'blocklist.html'});
+    });
+
+    blockCurrentSiteButton.addEventListener('click', () => {
+        chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+            if (tabs[0] && tabs[0].url) {
+                chrome.runtime.sendMessage({action: "blockSite", site: tabs[0].url}, (response) => {
+                    if (response.success) {
+                        alert('Sitio bloqueado exitosamente');
+                        window.close();
+                    }
+                });
+            }
+        });
+    });
+
+    updatePopup();
+    
+    // Iniciar la actualización periódica
+    updateInterval = setInterval(updatePopup, 1000);
+});
+
+function updatePopup() {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs.length === 0) {
             console.error('No se encontraron pestañas activas');
+            updateUI('Estado: desconocido', 'Tiempo: desconocido', 'Fecha: desconocida');
             return;
         }
         let url = new URL(tabs[0].url);
-        let siteName = url.hostname;
+        let siteName = url.hostname.replace('www.', '');
 
-        chrome.storage.local.get([siteName], function(result) {
-            if (result[siteName]) {
-                let elapsedTime = result[siteName].totalTime + (Date.now() - result[siteName].startTime);
-                timeSpentElement.textContent = `Has pasado ${msToTime(elapsedTime)} en el sitio ${siteName}.`;
-            } else {
-                timeSpentElement.textContent = 'No se ha podido obtener el tiempo transcurrido en este sitio web.';
+        if (siteName === chrome.runtime.id) {
+            updateUI('¡Estás en un sitio bloqueado!', '¡A seguir trabajando!', 'Fecha: ' + getCurrentDate());
+            return;
+        }
+
+        chrome.runtime.sendMessage({action: "getStatus", siteName: siteName}, (response) => {
+            if (chrome.runtime.lastError) {
+                console.error('Error al enviar mensaje:', chrome.runtime.lastError.message);
+                updateUI('Estado: desconocido', 'Tiempo: desconocido', 'Fecha: desconocida');
+                return;
             }
 
-            // Enviar mensaje para obtener estado
-            chrome.runtime.sendMessage({request: "getStatus", siteName: siteName}, (response) => {
-                if (chrome.runtime.lastError) {
-                    console.error('Error al enviar mensaje:', chrome.runtime.lastError.message);
-                    statusElement.textContent = 'Estado: desconocido';
-                    return;
-                }
-
-                if (response && response.status) {
-                    statusElement.textContent = `Estado: ${response.status}`;
-                } else {
-                    statusElement.textContent = 'Estado: desconocido';
-                }
-            });
+            if (response) {
+                updateUI(
+                    `Estado: ${response.status}`,
+                    `Has pasado ${msToTime(response.totalTime)} en el sitio ${siteName}.`,
+                    `Fecha: ${response.date}`
+                );
+            } else {
+                updateUI('Estado: desconocido', 'Tiempo: desconocido', 'Fecha: desconocida');
+            }
         });
     });
-});
+}
 
-
+function updateUI(status, time, date) {
+    if (statusElement && timeSpentElement && dateElement) {
+        statusElement.textContent = status;
+        timeSpentElement.textContent = time;
+        dateElement.textContent = date;
+    }
+}
 
 function msToTime(duration) {
     let seconds = Math.floor((duration / 1000) % 60),
@@ -51,20 +95,9 @@ function msToTime(duration) {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
-function updateTime() {
-    chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-        let url = new URL(tabs[0].url);
-        let siteName = url.hostname.replace('www.', ''); // Normaliza el nombre del sitio
-        chrome.storage.local.get([siteName], function(result) {
-            if (result[siteName]) {
-                let elapsedTime = result[siteName].totalTime + (Date.now() - result[siteName].startTime);
-                document.getElementById('timeSpent').textContent = `Has pasado ${msToTime(elapsedTime)} en el sitio ${siteName}.`;
-            } else {
-                document.getElementById('timeSpent').textContent = 'No se ha podido obtener el tiempo transcurrido en este sitio web.';
-            }
-        });
-    });
-}
-
-// Actualiza el tiempo cada segundo
-setInterval(updateTime, 1000);
+// Limpiar el intervalo cuando se cierra el popup
+window.addEventListener('unload', () => {
+    if (updateInterval) {
+        clearInterval(updateInterval);
+    }
+});

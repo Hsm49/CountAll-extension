@@ -1,28 +1,85 @@
-// Monitorea la actividad del usuario
+let lastActivityTime = Date.now();
+let isActive = true;
+let isWindowFocused = true;
+const IDLE_TIMEOUT = 5 * 1000; // 5 segundos
 
-
-let idleTimeout = null;
-const idleTimeLimit = 1 * 5 * 1000; // 5 minutos
-
-function resetIdleTimer() {
-    if (idleTimeout) clearTimeout(idleTimeout);
-    idleTimeout = setTimeout(() => {
-        chrome.runtime.sendMessage({status: "inactive"});
-    }, idleTimeLimit);
-    chrome.runtime.sendMessage({status: "active"});
+function resetActivityTimer() {
+    lastActivityTime = Date.now();
+    if (!isActive) {
+        isActive = true;
+        sendActivityStatus();
+    }
 }
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === "checkMedia") {
-        let mediaPlaying = !!document.querySelector('video, audio'); // Verifica si hay medios
-        sendResponse({ mediaPlaying: mediaPlaying });
-        return true;  // Asegura que sendResponse es llamado correctamente
+function checkIdleStatus() {
+    if (Date.now() - lastActivityTime > IDLE_TIMEOUT) {
+        if (isActive) {
+            isActive = false;
+            sendActivityStatus();
+        }
+    } else if (!isActive) {
+        isActive = true;
+        sendActivityStatus();
     }
+}
+
+function sendActivityStatus() {
+    chrome.runtime.sendMessage({
+        action: "updateStatus",
+        isActive: isActive,
+        isWindowFocused: isWindowFocused,
+        hasMedia: checkForMedia()
+    });
+}
+
+function checkForMedia() {
+    const videoElements = document.getElementsByTagName('video');
+    const audioElements = document.getElementsByTagName('audio');
+    
+    for (let video of videoElements) {
+        if (!video.paused) return true;
+    }
+    
+    for (let audio of audioElements) {
+        if (!audio.paused) return true;
+    }
+    
+    return false;
+}
+
+// Event listeners
+['mousemove', 'keydown', 'scroll', 'click'].forEach(eventType => {
+    document.addEventListener(eventType, resetActivityTimer);
 });
 
-// Detectar movimiento de mouse o teclado
-window.addEventListener('mousemove', resetIdleTimer);
-window.addEventListener('keydown', resetIdleTimer);
+// Window focus listeners
+window.addEventListener('focus', () => {
+    isWindowFocused = true;
+    sendActivityStatus();
+});
 
-// Iniciar el temporizador de inactividad
-resetIdleTimer();
+window.addEventListener('blur', () => {
+    isWindowFocused = false;
+    sendActivityStatus();
+});
+
+// Check idle status and send updates every second
+setInterval(() => {
+    checkIdleStatus();
+    sendActivityStatus();
+}, 1000);
+
+// Initial status send
+sendActivityStatus();
+
+// Listen for messages from the background script
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === "checkStatus") {
+        sendResponse({
+            isActive: isActive,
+            isWindowFocused: isWindowFocused,
+            hasMedia: checkForMedia()
+        });
+    }
+    return true;
+});
