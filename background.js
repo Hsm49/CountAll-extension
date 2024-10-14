@@ -1,13 +1,11 @@
 let siteActivityStatus = {};
 
 function getCurrentDate() {
-    return new Date().toISOString().split('T')[0];
+    return new Date().toLocaleDateString('en-CA'); // Formato YYYY-MM-DD
 }
 
 function initializeDailyData(siteName) {
-    const currentDate = getCurrentDate();
     return {
-        date: currentDate,
         totalTime: 0,
         active: false,
         mediaPlaying: false,
@@ -17,25 +15,24 @@ function initializeDailyData(siteName) {
 }
 
 function loadSiteData(siteName, callback) {
-    chrome.storage.local.get([siteName], (result) => {
-        if (result[siteName]) {
-            const storedData = result[siteName];
-            const currentDate = getCurrentDate();
-            if (storedData.date !== currentDate) {
-                // Es un nuevo día, reiniciar el contador
-                siteActivityStatus[siteName] = initializeDailyData(siteName);
-            } else {
-                siteActivityStatus[siteName] = storedData;
-            }
-        } else {
-            siteActivityStatus[siteName] = initializeDailyData(siteName);
+    const currentDate = getCurrentDate();
+    chrome.storage.local.get([currentDate], (result) => {
+        let dailyData = result[currentDate] || {};
+        if (!dailyData[siteName]) {
+            dailyData[siteName] = initializeDailyData(siteName);
         }
+        siteActivityStatus[siteName] = dailyData[siteName];
         if (callback) callback();
     });
 }
 
 function saveSiteData(siteName) {
-    chrome.storage.local.set({ [siteName]: siteActivityStatus[siteName] });
+    const currentDate = getCurrentDate();
+    chrome.storage.local.get([currentDate], (result) => {
+        let dailyData = result[currentDate] || {};
+        dailyData[siteName] = siteActivityStatus[siteName];
+        chrome.storage.local.set({ [currentDate]: dailyData });
+    });
 }
 
 function updateSiteStatus(siteName, isActive, isWindowFocused, hasMedia) {
@@ -128,7 +125,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     if (message.action === "getStats") {
         getStats(message.timeRange).then(sendResponse);
-        return true; // Indicates that the response is asynchronous
+        return true;
     }
 
     if (message.action === "blockSite") {
@@ -194,27 +191,56 @@ async function getStats(timeRange) {
 
     switch(timeRange) {
         case 'daily':
-            filteredData = filterDataByDate(allData, currentDate);
+            filteredData = allData[getCurrentDate()] || {};
             break;
         case 'weekly':
-            const weekStart = new Date(currentDate.setDate(currentDate.getDate() - currentDate.getDay()));
-            filteredData = filterDataByDateRange(allData, weekStart, currentDate);
+            filteredData = getDataForLastNDays(allData, 7);
             break;
         case 'monthly':
-            const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-            filteredData = filterDataByDateRange(allData, monthStart, currentDate);
+            filteredData = getDataForLastNDays(allData, 30);
             break;
         case 'all':
         default:
-            filteredData = allData;
+            filteredData = combineAllData(allData);
     }
 
     const stats = Object.entries(filteredData).map(([name, data]) => ({
         name,
-        totalTime: Array.isArray(data) ? data.reduce((sum, day) => sum + day.totalTime, 0) : data.totalTime
+        totalTime: data.totalTime || 0
     }));
 
     return stats.sort((a, b) => b.totalTime - a.totalTime);
+}
+
+function getDataForLastNDays(allData, n) {
+    const result = {};
+    const dates = Object.keys(allData).sort().reverse().slice(0, n);
+    
+    dates.forEach(date => {
+        Object.entries(allData[date]).forEach(([site, data]) => {
+            if (!result[site]) {
+                result[site] = { totalTime: 0 };
+            }
+            result[site].totalTime += data.totalTime;
+        });
+    });
+
+    return result;
+}
+
+function combineAllData(allData) {
+    const result = {};
+    
+    Object.values(allData).forEach(dailyData => {
+        Object.entries(dailyData).forEach(([site, data]) => {
+            if (!result[site]) {
+                result[site] = { totalTime: 0 };
+            }
+            result[site].totalTime += data.totalTime;
+        });
+    });
+
+    return result;
 }
 
 function filterDataByDate(data, date) {
@@ -242,7 +268,12 @@ function filterDataByDateRange(data, startDate, endDate) {
 async function getAllSiteData() {
     return new Promise((resolve) => {
         chrome.storage.local.get(null, (result) => {
-            resolve(result);
+            // Filtramos para obtener solo las entradas con fechas (formato YYYY-MM-DD)
+            const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+            const filteredResult = Object.fromEntries(
+                Object.entries(result).filter(([key]) => dateRegex.test(key))
+            );
+            resolve(filteredResult);
         });
     });
 }
@@ -270,10 +301,6 @@ setInterval(() => {
 setInterval(() => {
     const currentDate = getCurrentDate();
     Object.keys(siteActivityStatus).forEach(siteName => {
-        if (siteActivityStatus[siteName].date !== currentDate) {
-            // Es un nuevo día, reiniciar el contador
-            siteActivityStatus[siteName] = initializeDailyData(siteName);
-            saveSiteData(siteName);
-        }
+        loadSiteData(siteName);
     });
 }, 60000);

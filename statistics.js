@@ -11,14 +11,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error al obtener estadísticas:', chrome.runtime.lastError.message);
                 return;
             }
-            // Ordenar los sitios por tiempo de uso (de mayor a menor)
-            response.sort((a, b) => b.totalTime - a.totalTime);
-            displayStats(response);
+            displayStats(response, timeRange);
         });
     }
 
-    function displayStats(stats) {
+    function displayStats(stats, timeRange) {
         statsContainer.innerHTML = '';
+        
+        if (stats.length === 0) {
+            statsContainer.innerHTML = '<p>No hay datos para mostrar en este período.</p>';
+            return;
+        }
+
+        const headerElement = document.createElement('h2');
+        headerElement.textContent = getHeaderText(timeRange);
+        statsContainer.appendChild(headerElement);
+
         stats.forEach(site => {
             const siteElement = document.createElement('div');
             siteElement.className = 'site-stat';
@@ -34,6 +42,28 @@ document.addEventListener('DOMContentLoaded', function() {
         // Añadir event listeners a los botones
         document.querySelectorAll('.blockToggle').forEach(button => {
             button.addEventListener('click', toggleBlockStatus);
+        });
+    }
+
+    function getHeaderText(timeRange) {
+        switch(timeRange) {
+            case 'daily':
+                return `Uso del día ${getCurrentDate()}`;
+            case 'weekly':
+                return 'Uso de los últimos 7 días';
+            case 'monthly':
+                return 'Uso de los últimos 30 días';
+            case 'all':
+            default:
+                return 'Uso total';
+        }
+    }
+
+    function getCurrentDate() {
+        return new Date().toLocaleDateString('es-ES', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
         });
     }
 

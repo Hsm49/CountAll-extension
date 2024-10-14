@@ -55,14 +55,15 @@ function updatePopup() {
         let siteName = url.hostname.replace('www.', '');
 
         if (siteName === chrome.runtime.id) {
-            updateUI('¡Estás en un sitio bloqueado!', '¡A seguir trabajando!', 'Fecha: ' + getCurrentDate());
+            updateUI('¡A seguir trabajando!', '¡Estás en un sitio bloqueado!', 'Fecha: ' + getCurrentDate());
+            blockCurrentSiteButton.style.display = 'none';
             return;
         }
 
         chrome.runtime.sendMessage({action: "getStatus", siteName: siteName}, (response) => {
             if (chrome.runtime.lastError) {
                 console.error('Error al enviar mensaje:', chrome.runtime.lastError.message);
-                updateUI('Estado: desconocido', 'Tiempo: desconocido', 'Fecha: desconocida');
+                updateUI('Estado: desconocido', 'Tiempo: desconocido', 'Fecha: desconocida');                
                 return;
             }
 
@@ -70,12 +71,20 @@ function updatePopup() {
                 updateUI(
                     `Estado: ${response.status}`,
                     `Has pasado ${msToTime(response.totalTime)} en el sitio ${siteName}.`,
-                    `Fecha: ${response.date}`
+                    `Fecha: ${getCurrentDate()}`
                 );
             } else {
                 updateUI('Estado: desconocido', 'Tiempo: desconocido', 'Fecha: desconocida');
             }
         });
+    });
+}
+
+function getCurrentDate() {
+    return new Date().toLocaleDateString('es-ES', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
     });
 }
 
