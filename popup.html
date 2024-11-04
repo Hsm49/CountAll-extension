@@ -10,13 +10,22 @@
     <div class="logo">
         <img src="icons/icon.png" alt="Logo" class="logo-img">
     </div>
-    <p id="date">Fecha: Cargando...</p>
-    <p id="timeSpent">Cargando...</p>
-    <p id="status">Estado: Cargando...</p>
-    <div class="buttons">
-        <button id="blockCurrentSiteButton">Bloquear sitio actual</button>
-        <button id="statsButton">Ver estadísticas</button>
-        <button id="blocklistButton" class="blockButton">Gestionar sitios bloqueados</button>
+    <div id="mainContainer">
+        <p id="date">Fecha: Cargando...</p>
+        <p id="timeSpent">Cargando...</p>
+        <p id="status">Estado: Cargando...</p>
+        <div class="buttons">
+            <button id="blockCurrentSiteButton">Bloquear sitio actual</button>
+            <button id="statsButton">Ver estadísticas</button>
+            <button id="blocklistButton" class="blockButton">Gestionar sitios bloqueados</button>
+            <button id="pomodoroButton">Pomodoro</button>
+        </div>
+    </div>
+    <div id="pomodoroContainer" style="display: none;">
+        <p id="pomodoroCounter">25:00</p>
+        <button id="startPauseButton">INICIAR</button>
+        <p>Pomodoros completados: <span id="pomodoroCompleted">0</span></p>
+        <button id="backButton">Volver</button>
     </div>
     <script src="popup.js"></script>
 </body>

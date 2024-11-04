@@ -1,4 +1,10 @@
 let siteActivityStatus = {};
+let pomodoroTime = 25 * 60; // 25 minutes in seconds
+let isPomodoroRunning = false;
+let pomodoroCompleted = 0;
+let strikes = 0;
+let confirmationTimeout;
+let pomodoroInterval;
 
 function getCurrentDate() {
     return new Date().toLocaleDateString('en-CA'); // Formato YYYY-MM-DD
@@ -100,7 +106,19 @@ chrome.windows.onFocusChanged.addListener((windowId) => {
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === "updateStatus") {
+    if (message.action === "togglePomodoro") {
+        if (isPomodoroRunning) {
+            pausePomodoro();
+        } else {
+            startPomodoro();
+        }
+    } else if (message.action === "getPomodoroStatus") {
+        sendResponse({
+            time: formatTime(pomodoroTime),
+            completed: pomodoroCompleted,
+            isRunning: isPomodoroRunning
+        });
+    } else if (message.action === "updateStatus") {
         let tab = sender.tab;
         if (tab && tab.url) {
             let url = new URL(tab.url);
@@ -121,6 +139,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }
         });
         return true; // Indicates that the response is asynchronous
+    } else if (message.action === "checkStatus") {
+        sendResponse({
+            isActive: siteActivityStatus[siteName].active,
+            isWindowFocused: siteActivityStatus[siteName].windowFocused,
+            hasMedia: siteActivityStatus[siteName].mediaPlaying
+        });
+        return true;
     }
 
     if (message.action === "getStats") {
@@ -138,7 +163,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
 });
-
 
 // Funciones para bloquear sitios
 function normalizeUrl(url) {
@@ -304,3 +328,84 @@ setInterval(() => {
         loadSiteData(siteName);
     });
 }, 60000);
+
+function startPomodoro() {
+    isPomodoroRunning = true;
+    pomodoroInterval = setInterval(updatePomodoro, 1000);
+}
+
+function pausePomodoro() {
+    isPomodoroRunning = false;
+    clearInterval(pomodoroInterval);
+}
+
+function updatePomodoro() {
+    if (pomodoroTime <= 0) {
+        pomodoroCompleted++;
+        savePomodoroCompleted();
+        resetPomodoro();
+        return;
+    }
+
+    pomodoroTime--;
+    chrome.runtime.sendMessage({ action: "checkStatus" }, (response) => {
+        if (response && !response.isActive) {
+            strikes++;
+            if (strikes >= 3) {
+                pausePomodoro();
+                alert('Pomodoro detenido por inactividad.');
+            } else {
+                showConfirmationMessage();
+            }
+        }
+    });
+}
+
+function resetPomodoro() {
+    pomodoroTime = 25 * 60;
+    pausePomodoro();
+}
+
+function showConfirmationMessage() {
+    clearTimeout(confirmationTimeout);
+    chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon.png',
+        title: 'Confirmación de actividad',
+        message: `¿Sigues allí? Confirmar (${strikes}/3)`,
+        buttons: [{ title: 'Confirmar' }],
+        requireInteraction: true
+    }, (notificationId) => {
+        chrome.notifications.onButtonClicked.addListener((notifId, btnIdx) => {
+            if (notifId === notificationId && btnIdx === 0) {
+                strikes = 0;
+                chrome.notifications.clear(notificationId);
+            }
+        });
+
+        confirmationTimeout = setTimeout(() => {
+            chrome.notifications.clear(notificationId);
+            pausePomodoro();
+            alert('Pomodoro detenido por inactividad.');
+        }, 15000);
+    });
+}
+
+function savePomodoroCompleted() {
+    chrome.storage.local.set({ pomodoroCompleted: pomodoroCompleted });
+}
+
+function loadPomodoroCompleted() {
+    chrome.storage.local.get(['pomodoroCompleted'], (result) => {
+        pomodoroCompleted = result.pomodoroCompleted || 0;
+    });
+}
+
+function formatTime(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
+}
+
+// Load the pomodoroCompleted counter when the background script starts
+loadPomodoroCompleted();

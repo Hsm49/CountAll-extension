@@ -1,21 +1,23 @@
-let timeSpentElement;
-let statusElement;
-let dateElement;
 let updateInterval;
 
 document.addEventListener('DOMContentLoaded', function() {
-    timeSpentElement = document.getElementById('timeSpent');
-    statusElement = document.getElementById('status');
-    dateElement = document.getElementById('date');
+    const timeSpentElement = document.getElementById('timeSpent');
+    const statusElement = document.getElementById('status');
+    const dateElement = document.getElementById('date');
+    const pomodoroButton = document.getElementById('pomodoroButton');
+    const backButton = document.getElementById('backButton');
+    const startPauseButton = document.getElementById('startPauseButton');
+    const pomodoroCounter = document.getElementById('pomodoroCounter');
+    const pomodoroCompletedElement = document.getElementById('pomodoroCompleted');
+    const statsButton = document.getElementById('statsButton');
+    const blocklistButton = document.getElementById('blocklistButton');
+    const blockCurrentSiteButton = document.getElementById('blockCurrentSiteButton');
+
 
     if (!timeSpentElement || !statusElement || !dateElement) {
         console.error('Elementos no encontrados en el DOM');
         return;
     }
-
-    const statsButton = document.getElementById('statsButton');
-    const blocklistButton = document.getElementById('blocklistButton');
-    const blockCurrentSiteButton = document.getElementById('blockCurrentSiteButton');
 
     statsButton.addEventListener('click', () => {
         chrome.tabs.create({url: 'statistics.html'});
@@ -38,10 +40,34 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    pomodoroButton.addEventListener('click', () => {
+        document.getElementById('mainContainer').style.display = 'none';
+        document.getElementById('pomodoroContainer').style.display = 'block';
+        updatePomodoroUI();
+    });
+
+    backButton.addEventListener('click', () => {
+        document.getElementById('pomodoroContainer').style.display = 'none';
+        document.getElementById('mainContainer').style.display = 'block';
+    });
+
+    startPauseButton.addEventListener('click', () => {
+        chrome.runtime.sendMessage({ action: "togglePomodoro" });
+    });
+
+    function updatePomodoroUI() {
+        chrome.runtime.sendMessage({ action: "getPomodoroStatus" }, (response) => {
+            if (response) {
+                pomodoroCounter.textContent = response.time;
+                pomodoroCompletedElement.textContent = response.completed;
+                startPauseButton.textContent = response.isRunning ? 'PAUSAR' : 'INICIAR';
+            }
+        });
+    }
+
     updatePopup();
-    
-    // Iniciar la actualización periódica
-    updateInterval = setInterval(updatePopup, 1000);
+    setInterval(updatePopup, 1000);
+    setInterval(updatePomodoroUI, 1000);
 });
 
 function updatePopup() {
@@ -89,6 +115,9 @@ function getCurrentDate() {
 }
 
 function updateUI(status, time, date) {
+    const statusElement = document.getElementById('status');
+    const timeSpentElement = document.getElementById('timeSpent');
+    const dateElement = document.getElementById('date');
     if (statusElement && timeSpentElement && dateElement) {
         statusElement.textContent = status;
         timeSpentElement.textContent = time;

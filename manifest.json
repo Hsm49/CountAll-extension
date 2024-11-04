@@ -4,6 +4,7 @@
     "description": "Gestor de tiempo y bloqueo de sitios",
     "version": "1.0",
     "permissions": [
+        "notifications",
         "tabs",
         "activeTab",
         "storage",

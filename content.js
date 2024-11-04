@@ -24,12 +24,16 @@ function checkIdleStatus() {
 }
 
 function sendActivityStatus() {
-    chrome.runtime.sendMessage({
-        action: "updateStatus",
-        isActive: isActive,
-        isWindowFocused: isWindowFocused,
-        hasMedia: checkForMedia()
-    });
+    try {
+        chrome.runtime.sendMessage({
+            action: "updateStatus",
+            isActive: isActive,
+            isWindowFocused: isWindowFocused,
+            hasMedia: checkForMedia()
+        });
+    } catch (error) {
+        console.error("Error sending message:", error);
+    }
 }
 
 function checkForMedia() {
