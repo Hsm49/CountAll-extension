@@ -8,8 +8,19 @@
 </head>
 <body>
     <div id="pomodoroContainer">
-        <p id="pomodoroCounter">25:00</p>
-        <button id="startPauseButton">INICIAR</button>
+        <form id="pomodoroForm">
+            <label for="task">Selecciona una tarea:</label>
+            <select id="task">
+                <option value="">Ninguna</option>
+                <!-- Agrega opciones de tareas aquí -->
+            </select>
+            <label for="duration">Duración de la sesión (minutos):</label>
+            <input type="number" id="duration" value="25" min="1">
+            <button type="submit">Iniciar</button>
+        </form>
+        <p id="pomodoroCounter" style="display:none;">25:00</p>
+        <button id="startPauseButton" style="display:none;">PAUSAR</button>
+        <button id="cancelButton" style="display:none;">CANCELAR</button>
         <p>Pomodoros completados: <span id="pomodoroCompleted">0</span></p>
     </div>
     <script src="pomodoro.js"></script>

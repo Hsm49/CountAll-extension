@@ -18,14 +18,39 @@
             <button id="blockCurrentSiteButton">Bloquear sitio actual</button>
             <button id="statsButton">Ver estadísticas</button>
             <button id="blocklistButton" class="blockButton">Gestionar sitios bloqueados</button>
-            <button id="pomodoroButton">Pomodoro</button>
+            <button id="pomodoroButton">Sesión de trabajo</button>
         </div>
     </div>
     <div id="pomodoroContainer" style="display: none;">
-        <p id="pomodoroCounter">25:00</p>
-        <button id="startPauseButton">INICIAR</button>
-        <p>Pomodoros completados: <span id="pomodoroCompleted">0</span></p>
-        <button id="backButton">Volver</button>
+        <form id="pomodoroForm">
+            <div class="session-select">
+                <label for="sessions">Número de sesiones (30 minutos cada una):</label>
+                <select id="sessions" class="sessions-dropdown">
+                    <option value="1">1 sesión</option>
+                    <option value="2">2 sesiones</option>
+                    <option value="3">3 sesiones</option>
+                    <option value="4">4 sesiones</option>
+                    <option value="5">5 sesiones</option>
+                    <option value="6">6 sesiones</option>
+                    <option value="7">7 sesiones</option>
+                    <option value="8">8 sesiones</option>
+                </select>
+            </div>
+            <div class="custom-duration">
+                <span>Duración personalizada (minutos):</span>
+                <input type="number" id="customDuration" min="1" max="120" placeholder="30">
+            </div>
+            <button type="submit" class="start-btn">Iniciar</button>
+        </form>
+        <div class="timer">00:00</div>
+        <div class="timer-controls">
+            <button class="pause-btn" style="display: none;">PAUSAR</button>
+            <button class="cancel-btn">CANCELAR</button>
+        </div>
+        <div class="pomodoro-completed">
+            Pomodoros completados: <span id="pomodoroCompleted">0</span>
+        </div>
+        <button class="back-btn">Volver</button>
     </div>
     <script src="popup.js"></script>
 </body>

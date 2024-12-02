@@ -162,6 +162,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         unblockSite(message.site).then(sendResponse);
         return true;
     }
+
+    if (message.action === "completePomodoro") {
+        pomodoroCompleted++;
+        savePomodoroCompleted();
+        assignPoints();
+        calculateAvatarProbability();
+        sendResponse({ success: true });
+    }
 });
 
 // Funciones para bloquear sitios
@@ -399,6 +407,21 @@ function loadPomodoroCompleted() {
     chrome.storage.local.get(['pomodoroCompleted'], (result) => {
         pomodoroCompleted = result.pomodoroCompleted || 0;
     });
+}
+
+function assignPoints() {
+    const points = 5; // Asigna puntos por sesión completada
+    chrome.storage.local.get(['totalPoints'], (result) => {
+        const totalPoints = result.totalPoints || 0;
+        chrome.storage.local.set({ totalPoints: totalPoints + points });
+    });
+}
+
+function calculateAvatarProbability() {
+    const probability = 0.1; // Probabilidad de obtener un avatar de rareza baja
+    if (Math.random() < probability) {
+        alert('¡Has obtenido un avatar de rareza baja!');
+    }
 }
 
 function formatTime(seconds) {

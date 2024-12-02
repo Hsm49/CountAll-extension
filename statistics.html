@@ -4,27 +4,54 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Estadísticas de uso</title>
+    <link rel="stylesheet" href="styles.css">
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 20px;
             width: 400px;
+            background-color: #f0f0f0;
         }
         h1 {
             text-align: center;
+            color: #333;
         }
         select {
             margin-bottom: 10px;
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            color: #607489;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml;utf8,<svg fill='%23607489' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/><path d='M0 0h24v24H0z' fill='none'/></svg>");
+            background-repeat: no-repeat;
+            background-position-x: 95%;
+            background-position-y: 50%;
+            transition: all 0.3s ease;
+        }
+        select:focus {
+            outline: none;
+            border-color: #1b70a6;
+            box-shadow: 0 0 0 2px rgba(27, 112, 166, 0.2);
         }
         #statsContainer {
             max-height: 300px;
             overflow-y: auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
         }
         .site-stat {
             margin-bottom: 10px;
-            padding: 5px;
-            border-bottom: 1px solid #ccc;
+            padding: 10px;
+            border-bottom: 1px solid #e9ecef;
+            color: #607489;
         }
     </style>
 </head>
