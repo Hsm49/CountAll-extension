@@ -1,5 +1,5 @@
 let siteActivityStatus = {};
-let pomodoroTime = 25 * 60; // 25 minutes in seconds
+let pomodoroTime = 30 * 60; // 30 minutes in seconds
 let isPomodoroRunning = false;
 let pomodoroCompleted = 0;
 let strikes = 0;
@@ -106,7 +106,13 @@ chrome.windows.onFocusChanged.addListener((windowId) => {
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === "togglePomodoro") {
+    if (message.action === "startPomodoro") {
+        startPomodoro(message.duration);
+    } else if (message.action === "pausePomodoro") {
+        pausePomodoro();
+    } else if (message.action === "cancelPomodoro") {
+        cancelPomodoro();
+    } else if (message.action === "togglePomodoro") {
         if (isPomodoroRunning) {
             pausePomodoro();
         } else {
@@ -337,40 +343,59 @@ setInterval(() => {
     });
 }, 60000);
 
-function startPomodoro() {
-    isPomodoroRunning = true;
-    pomodoroInterval = setInterval(updatePomodoro, 1000);
+function startPomodoro(duration) {
+    if (!isPomodoroRunning) {
+        isPomodoroRunning = true;
+        pomodoroTime = duration || pomodoroTime; // Use the provided duration or the current pomodoroTime
+        pomodoroInterval = setInterval(updatePomodoro, 1000);
+        chrome.storage.local.set({ pomodoroTime, isPomodoroRunning });
+        chrome.runtime.sendMessage({ action: "pomodoroStarted" });
+    }
 }
 
 function pausePomodoro() {
+    if (isPomodoroRunning) {
+        isPomodoroRunning = false;
+        clearInterval(pomodoroInterval);
+        chrome.storage.local.set({ isPomodoroRunning });
+        chrome.runtime.sendMessage({ action: "pomodoroPaused" });
+    }
+}
+
+function cancelPomodoro() {
     isPomodoroRunning = false;
     clearInterval(pomodoroInterval);
+    resetPomodoro();
+    chrome.storage.local.set({ pomodoroTime, isPomodoroRunning });
+    chrome.runtime.sendMessage({ action: "pomodoroCanceled" });
 }
 
 function updatePomodoro() {
     if (pomodoroTime <= 0) {
-        pomodoroCompleted++;
-        savePomodoroCompleted();
-        resetPomodoro();
+        completePomodoro();
         return;
     }
 
-    pomodoroTime--;
-    chrome.runtime.sendMessage({ action: "checkStatus" }, (response) => {
-        if (response && !response.isActive) {
-            strikes++;
-            if (strikes >= 3) {
-                pausePomodoro();
-                alert('Pomodoro detenido por inactividad.');
-            } else {
-                showConfirmationMessage();
-            }
-        }
-    });
+    if (isPomodoroRunning) {
+        pomodoroTime--;
+        chrome.storage.local.set({ pomodoroTime });
+        chrome.runtime.sendMessage({ action: "pomodoroUpdated", time: formatTime(pomodoroTime) });
+    }
+}
+
+function completePomodoro() {
+    isPomodoroRunning = false;
+    clearInterval(pomodoroInterval);
+    pomodoroCompleted++;
+    savePomodoroCompleted();
+    assignPoints();
+    calculateAvatarProbability();
+    chrome.runtime.sendMessage({ action: "pomodoroCompleted", completed: pomodoroCompleted });
+    resetPomodoro();
 }
 
 function resetPomodoro() {
-    pomodoroTime = 25 * 60;
+    pomodoroTime = 30 * 60; // Reset to 30 minutes
     pausePomodoro();
 }
 

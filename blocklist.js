@@ -2,8 +2,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const blockForm = document.getElementById('blockForm');
     const siteInput = document.getElementById('siteInput');
     const blockedSitesContainer = document.getElementById('blockedSites');
+    const blockAdultSitesCheckbox = document.getElementById('blockAdultSites');
 
     loadBlockedSites();
+    loadBlockAdultSitesOption();
 
     blockForm.addEventListener('submit', function(e) {
         e.preventDefault();
@@ -14,10 +16,31 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    blockAdultSitesCheckbox.addEventListener('change', function() {
+        const isChecked = blockAdultSitesCheckbox.checked;
+        chrome.storage.local.set({ blockAdultSites: isChecked }, function() {
+            if (isChecked) {
+                addAdultSites();
+            } else {
+                removeAdultSites();
+            }
+        });
+    });
+
     function loadBlockedSites() {
         chrome.storage.local.get(['blockedSites'], function(result) {
             const blockedSites = result.blockedSites || [];
             updateBlockedSitesList(blockedSites);
+        });
+    }
+
+    function loadBlockAdultSitesOption() {
+        chrome.storage.local.get(['blockAdultSites'], function(result) {
+            const isChecked = result.blockAdultSites || false;
+            blockAdultSitesCheckbox.checked = isChecked;
+            if (isChecked) {
+                addAdultSites();
+            }
         });
     }
 
@@ -45,9 +68,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function removeBlockedSite(site) {
+        const normalizedSite = normalizeUrl(site);
         chrome.storage.local.get(['blockedSites'], function(result) {
             let blockedSites = result.blockedSites || [];
-            blockedSites = blockedSites.filter(s => s !== site);
+            blockedSites = blockedSites.filter(s => s !== normalizedSite);
             chrome.storage.local.set({blockedSites: blockedSites}, function() {
                 updateBlockedSitesList(blockedSites);
             });
@@ -66,5 +90,21 @@ document.addEventListener('DOMContentLoaded', function() {
             siteElement.appendChild(removeButton);
             blockedSitesContainer.appendChild(siteElement);
         });
+    }
+
+    function addAdultSites() {
+        fetch(chrome.runtime.getURL('blocked_sites.json'))
+            .then(response => response.json())
+            .then(adultSites => {
+                adultSites.forEach(site => addBlockedSite(site));
+            });
+    }
+
+    function removeAdultSites() {
+        fetch(chrome.runtime.getURL('blocked_sites.json'))
+            .then(response => response.json())
+            .then(adultSites => {
+                adultSites.forEach(site => removeBlockedSite(site));
+            });
     }
 });

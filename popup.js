@@ -1,4 +1,5 @@
 let updateInterval;
+let previousPomodoroTime = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     const timeSpentElement = document.getElementById('timeSpent');
@@ -14,9 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const cancelButton = document.querySelector('.cancel-btn');
     const pomodoroCompletedElement = document.getElementById('pomodoroCompleted');
     const sessionsSelect = document.getElementById('sessions');
-    const customDurationInput = document.getElementById('customDuration');
     const backButton = document.querySelector('.back-btn');
-    let pomodoroInterval;
     let isPomodoroRunning = false;
     let pomodoroTime;
     let strikes = 0;
@@ -50,19 +49,20 @@ document.addEventListener('DOMContentLoaded', function() {
     pomodoroButton.addEventListener('click', () => {
         document.getElementById('mainContainer').style.display = 'none';
         document.getElementById('pomodoroContainer').style.display = 'block';
-        updatePomodoroUI();
+        resetPomodoroUI(); // Asegúrate de que la UI del pomodoro esté reseteada al abrir la vista
     });
 
     backButton.addEventListener('click', function() {
         document.getElementById('pomodoroContainer').style.display = 'none';
         document.getElementById('mainContainer').style.display = 'block';
+        resetPomodoroUI();
     });
 
     startPauseButton.addEventListener('click', function() {
         if (isPomodoroRunning) {
             pausePomodoro();
         } else {
-            startPomodoro();
+            resumePomodoro();
         }
     });
 
@@ -75,59 +75,54 @@ document.addEventListener('DOMContentLoaded', function() {
     pomodoroForm.addEventListener('submit', function(e) {
         e.preventDefault();
         const sessions = parseInt(sessionsSelect.value, 10);
-        const customDuration = parseInt(customDurationInput.value, 10);
-
-        if (customDuration) {
-            pomodoroTime = customDuration * 60;
-        } else {
-            pomodoroTime = sessions * 30 * 60;
-        }
+        pomodoroTime = sessions * 30 * 60;
 
         if (pomodoroTime > 0) {
-            startPomodoro();
+            startPomodoro(pomodoroTime);
         } else {
             alert('Por favor, selecciona una duración válida.');
         }
     });
 
-    function startPomodoro() {
-        isPomodoroRunning = true;
-        pomodoroForm.style.display = 'none';
-        pomodoroCounter.style.display = 'block';
-        startPauseButton.style.display = 'block';
-        cancelButton.style.display = 'block';
-        startPauseButton.textContent = 'PAUSAR';
-        pomodoroInterval = setInterval(updatePomodoro, 1000);
+    function startPomodoro(duration) {
+        chrome.runtime.sendMessage({ action: "startPomodoro", duration: duration });
+        backButton.style.display = 'none'; // Ocultar el botón de "Volver" cuando se inicia una sesión de trabajo
+    }
+
+    function resumePomodoro() {
+        chrome.runtime.sendMessage({ action: "startPomodoro" });
     }
 
     function pausePomodoro() {
-        isPomodoroRunning = false;
-        clearInterval(pomodoroInterval);
-        startPauseButton.textContent = 'REANUDAR';
+        chrome.runtime.sendMessage({ action: "pausePomodoro" });
     }
 
     function cancelPomodoro() {
-        isPomodoroRunning = false;
-        clearInterval(pomodoroInterval);
-        resetPomodoroUI();
+        chrome.runtime.sendMessage({ action: "cancelPomodoro" });
+        backButton.style.display = 'block'; // Mostrar el botón de "Volver" cuando se cancela una sesión de trabajo
     }
 
-    function updatePomodoro() {
-        if (pomodoroTime <= 0) {
-            completePomodoro();
-            return;
+    chrome.runtime.onMessage.addListener((message) => {
+        if (message.action === "pomodoroUpdated") {
+            pomodoroCounter.textContent = message.time;
+        } else if (message.action === "pomodoroCompleted") {
+            pomodoroCompletedElement.textContent = message.completed;
+            alert('¡Sesión completada!');
+            resetPomodoroUI();
+        } else if (message.action === "pomodoroStarted") {
+            isPomodoroRunning = true;
+            pomodoroForm.style.display = 'none';
+            pomodoroCounter.style.display = 'block';
+            startPauseButton.style.display = 'block';
+            cancelButton.style.display = 'block';
+            startPauseButton.textContent = 'PAUSAR';
+        } else if (message.action === "pomodoroPaused") {
+            isPomodoroRunning = false;
+            startPauseButton.textContent = 'REANUDAR';
+        } else if (message.action === "pomodoroCanceled") {
+            resetPomodoroUI();
         }
-        pomodoroTime--;
-        pomodoroCounter.textContent = formatTime(pomodoroTime);
-    }
-
-    function completePomodoro() {
-        isPomodoroRunning = false;
-        clearInterval(pomodoroInterval);
-        alert('¡Sesión completada!');
-        // Lógica para registrar la sesión, asignar puntos y calcular probabilidad de avatar
-        resetPomodoroUI();
-    }
+    });
 
     function resetPomodoroUI() {
         pomodoroForm.style.display = 'block';
@@ -135,20 +130,27 @@ document.addEventListener('DOMContentLoaded', function() {
         startPauseButton.style.display = 'none';
         cancelButton.style.display = 'none';
         startPauseButton.textContent = 'INICIAR';
-    }
-
-    function formatTime(seconds) {
-        const minutes = Math.floor(seconds / 60);
-        const remainingSeconds = seconds % 60;
-        return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
+        backButton.style.display = 'block'; // Mostrar el botón de "Volver" cuando se resetea la UI
     }
 
     function updatePomodoroUI() {
         chrome.runtime.sendMessage({ action: "getPomodoroStatus" }, (response) => {
             if (response) {
-                pomodoroCounter.textContent = response.time;
+                if (response.time !== previousPomodoroTime) {
+                    pomodoroCounter.textContent = response.time;
+                    previousPomodoroTime = response.time;
+                }
                 pomodoroCompletedElement.textContent = response.completed;
-                startPauseButton.textContent = response.isRunning ? 'PAUSAR' : 'INICIAR';
+                startPauseButton.textContent = response.isRunning ? 'PAUSAR' : 'REANUDAR';
+                if (response.isRunning) {
+                    pomodoroForm.style.display = 'none';
+                    pomodoroCounter.style.display = 'block';
+                    startPauseButton.style.display = 'block';
+                    cancelButton.style.display = 'block';
+                    backButton.style.display = 'none';
+                    document.getElementById('mainContainer').style.display = 'none';
+                    document.getElementById('pomodoroContainer').style.display = 'block';
+                }
             }
         });
     }
@@ -226,4 +228,19 @@ document.addEventListener('DOMContentLoaded', function() {
             clearInterval(updateInterval);
         }
     });
+
+    // Check and reset the session counter if the day has changed
+    checkAndResetSessionCounter();
 });
+
+function checkAndResetSessionCounter() {
+    const today = new Date().toLocaleDateString();
+    chrome.storage.local.get(['pomodoroDate', 'pomodoroCompleted'], (result) => {
+        if (result.pomodoroDate !== today) {
+            chrome.storage.local.set({ pomodoroDate: today, pomodoroCompleted: 0 });
+            document.getElementById('pomodoroCompleted').textContent = 0;
+        } else {
+            document.getElementById('pomodoroCompleted').textContent = result.pomodoroCompleted || 0;
+        }
+    });
+}

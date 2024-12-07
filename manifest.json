@@ -30,7 +30,7 @@
     ],
     "web_accessible_resources": [
         {
-            "resources": ["statistics.html", "blocklist.html", "blocked.html"],
+            "resources": ["statistics.html", "blocklist.html", "blocked.html", "blocked_sites.json"],
             "matches": ["<all_urls>"]
         }
     ]

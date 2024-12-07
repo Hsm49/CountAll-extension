@@ -39,9 +39,11 @@
             cursor: pointer;
             transition: background-color 0.3s ease;
         }
+        
         #blockForm button:hover {
             background-color: rgba(27, 112, 166, 0.8);
         }
+
         #blockedSites {
             max-height: 300px;
             overflow-y: auto;
@@ -79,6 +81,10 @@
         <input type="text" id="siteInput" placeholder="Ingrese el sitio a bloquear" required>
         <button type="submit">Bloquear sitio</button>
     </form>
+    <div>
+        <input type="checkbox" id="blockAdultSites">
+        <label for="blockAdultSites">Bloquear sitios para adultos</label>
+    </div>
     <div id="blockedSites"></div>
     <script src="blocklist.js"></script>
 </body>
