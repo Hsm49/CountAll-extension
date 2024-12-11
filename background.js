@@ -152,29 +152,33 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             hasMedia: siteActivityStatus[siteName].mediaPlaying
         });
         return true;
-    }
-
-    if (message.action === "getStats") {
+    } else if (message.action === "getStats") {
         getStats(message.timeRange).then(sendResponse);
         return true;
-    }
-
-    if (message.action === "blockSite") {
+    } else if (message.action === "blockSite") {
         blockSite(message.site).then(sendResponse);
         return true;
-    }
-
-    if (message.action === "unblockSite") {
+    } else if (message.action === "unblockSite") {
         unblockSite(message.site).then(sendResponse);
         return true;
-    }
-
-    if (message.action === "completePomodoro") {
+    } else if (message.action === "completePomodoro") {
         pomodoroCompleted++;
         savePomodoroCompleted();
         assignPoints();
         calculateAvatarProbability();
         sendResponse({ success: true });
+    } else if (message.action === "refreshBlockedSites") {
+        // Enviar mensaje a blocklist.js para actualizar la lista de sitios bloqueados
+        chrome.runtime.sendMessage({action: "refreshBlockedSites"});
+    } else if (message.action === 'updateBlockedSites') {
+        const normalizedSite = message.site;
+        chrome.storage.local.get(['blockedSites'], function(result) {
+            let blockedSites = result.blockedSites || [];
+            if (!blockedSites.includes(normalizedSite)) {
+                blockedSites.push(normalizedSite);
+                chrome.storage.local.set({ blockedSites: blockedSites });
+            }
+        });
     }
 });
 
@@ -203,23 +207,68 @@ chrome.webNavigation.onBeforeNavigate.addListener(function(details) {
 });
 
 async function blockSite(site) {
+    const token = await getToken();
     const normalizedSite = normalizeUrl(site);
-    const result = await chrome.storage.local.get(['blockedSites']);
-    let blockedSites = result.blockedSites || [];
-    if (!blockedSites.includes(normalizedSite)) {
-        blockedSites.push(normalizedSite);
-        await chrome.storage.local.set({blockedSites: blockedSites});
+    const siteData = {
+        nombre_pagina: normalizedSite,
+        descr_pagina: 'Bloqueado desde la extensión',
+        url_pagina: site
+    };
+
+    const response = await fetch('http://localhost:4444/api/paginaWeb/bloquearPagina', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(siteData)
+    });
+
+    const data = await response.json();
+    if (data.msg) {
+        const result = await chrome.storage.local.get(['blockedSites']);
+        let blockedSites = result.blockedSites || [];
+        if (!blockedSites.includes(normalizedSite)) {
+            blockedSites.push(normalizedSite);
+            await chrome.storage.local.set({blockedSites: blockedSites});
+        }
+        return {success: true};
+    } else {
+        console.error('Error blocking site:', data.error);
+        return {success: false, error: data.error};
     }
-    return {success: true};
 }
 
 async function unblockSite(site) {
+    const token = await getToken();
     const normalizedSite = normalizeUrl(site);
-    const result = await chrome.storage.local.get(['blockedSites']);
-    let blockedSites = result.blockedSites || [];
-    blockedSites = blockedSites.filter(s => s !== normalizedSite);
-    await chrome.storage.local.set({blockedSites: blockedSites});
-    return {success: true};
+
+    const response = await fetch(`http://localhost:4444/api/paginaWeb/desbloquearPagina/${normalizedSite}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    });
+
+    const data = await response.json();
+    if (data.msg) {
+        const result = await chrome.storage.local.get(['blockedSites']);
+        let blockedSites = result.blockedSites || [];
+        blockedSites = blockedSites.filter(s => s !== normalizedSite);
+        await chrome.storage.local.set({blockedSites: blockedSites});
+        return {success: true};
+    } else {
+        console.error('Error unblocking site:', data.error);
+        return {success: false, error: data.error};
+    }
+}
+
+async function getToken() {
+    return new Promise((resolve) => {
+        chrome.storage.local.get(['token'], (result) => {
+            resolve(result.token);
+        });
+    });
 }
 
 async function getStats(timeRange) {

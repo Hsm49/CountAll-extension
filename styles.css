@@ -188,3 +188,63 @@ button:hover {
 #pomodoroContainer .back-btn:hover {
     background-color: #f0f0f0;
 }
+
+/* Estilos para el contenedor de inicio de sesión */
+#loginContainer {
+    background-color: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 24px;
+    text-align: center;
+    max-width: 300px;
+    margin: 0 auto;
+}
+
+#loginContainer h1 {
+    color: #1b70a6;
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+}
+
+#loginContainer .form-group {
+    margin-bottom: 15px;
+    text-align: left;
+}
+
+#loginContainer label {
+    display: block;
+    margin-bottom: 5px;
+    color: #607489;
+}
+
+#loginContainer input {
+    padding: 10px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+    color: #607489;
+    transition: border-color 0.3s ease;
+}
+
+#loginContainer input:focus {
+    outline: none;
+    border-color: #1b70a6;
+    box-shadow: 0 0 0 2px rgba(27, 112, 166, 0.2);
+}
+
+#loginContainer .login-btn {
+    background-color: #1b70a6;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 32px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.2s;
+    margin-top: 10px;
+}
+
+#loginContainer .login-btn:hover {
+    background-color: #357abd;
+    transform: translateY(-2px);
+}

@@ -16,9 +16,57 @@ document.addEventListener('DOMContentLoaded', function() {
     const pomodoroCompletedElement = document.getElementById('pomodoroCompleted');
     const sessionsSelect = document.getElementById('sessions');
     const backButton = document.querySelector('.back-btn');
+    const loginForm = document.getElementById('loginForm');
+    const mainContainer = document.getElementById('mainContainer');
+    const loginContainer = document.getElementById('loginContainer');
+    const logoutButton = document.getElementById('logoutButton');
     let isPomodoroRunning = false;
     let pomodoroTime;
     let strikes = 0;
+
+    // Check if token exists in local storage
+    const token = localStorage.getItem('token');
+    if (token) {
+        loginContainer.style.display = 'none';
+        mainContainer.style.display = 'block';
+    }
+
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+
+        try {
+            const response = await fetch('http://localhost:4444/api/usuario/iniciarSesion', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email_usuario: email, password_usuario: password }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                localStorage.setItem('token', data.token);
+                loginContainer.style.display = 'none';
+                mainContainer.style.display = 'block';
+            } else {
+                alert(data.errors[0].msg || 'Error al iniciar sesión');
+            }
+        } catch (error) {
+            console.error('Error al iniciar sesión:', error);
+            alert('Error al iniciar sesión');
+        }
+    });
+
+    logoutButton.addEventListener('click', () => {
+        localStorage.removeItem('token');
+        loginContainer.style.display = 'block';
+        mainContainer.style.display = 'none';
+        alert('Sesión cerrada exitosamente');
+    });
 
     if (!timeSpentElement || !statusElement || !dateElement) {
         console.error('Elementos no encontrados en el DOM');
@@ -34,14 +82,41 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     blockCurrentSiteButton.addEventListener('click', () => {
-        chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+        chrome.tabs.query({active: true, currentWindow: true}, async (tabs) => {
             if (tabs[0] && tabs[0].url) {
-                chrome.runtime.sendMessage({action: "blockSite", site: tabs[0].url}, (response) => {
-                    if (response.success) {
+                const siteUrl = tabs[0].url;
+                const siteName = new URL(siteUrl).hostname.replace('www.', '');
+                const siteData = {
+                    nombre_pagina: siteName,
+                    descr_pagina: 'Bloqueado desde la extensión',
+                    url_pagina: siteUrl
+                };
+
+                try {
+                    const token = localStorage.getItem('token');
+                    const response = await fetch('http://localhost:4444/api/paginaWeb/bloquearPagina', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify(siteData)
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
                         alert('Sitio bloqueado exitosamente');
+                        // Enviar mensaje a blocklist.js para actualizar la lista de sitios bloqueados
+                        chrome.runtime.sendMessage({action: "refreshBlockedSites"});
                         window.close();
+                    } else {
+                        alert('Error al bloquear el sitio: ' + data.error);
                     }
-                });
+                } catch (error) {
+                    console.error('Error al bloquear el sitio:', error);
+                    alert('Error al bloquear el sitio');
+                }
             }
         });
     });

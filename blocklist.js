@@ -28,10 +28,20 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function loadBlockedSites() {
-        chrome.storage.local.get(['blockedSites'], function(result) {
-            const blockedSites = result.blockedSites || [];
-            updateBlockedSitesList(blockedSites);
-        });
+        const token = localStorage.getItem('token');
+        fetch('http://localhost:4444/api/paginaWeb/verPaginasBloqueadas', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const blockedSites = data.paginas_bloqueadas.map(site => site.url_pagina);
+            chrome.storage.local.set({ blockedSites }, function() {
+                updateBlockedSitesList(blockedSites);
+            });
+        })
+        .catch(error => console.error('Error fetching blocked sites:', error));
     }
 
     function loadBlockAdultSitesOption() {
@@ -49,33 +59,71 @@ document.addEventListener('DOMContentLoaded', function() {
             const parsedUrl = new URL(url);
             return parsedUrl.hostname.replace('www.', '');
         } catch (e) {
-            // Si la URL no es válida, intentamos limpiarla un poco
             return url.replace(/^(?:https?:\/\/)?(?:www\.)?/i, "").split('/')[0];
         }
     }
 
     function addBlockedSite(site) {
+        const token = localStorage.getItem('token');
         const normalizedSite = normalizeUrl(site);
-        chrome.storage.local.get(['blockedSites'], function(result) {
-            let blockedSites = result.blockedSites || [];
-            if (!blockedSites.includes(normalizedSite)) {
-                blockedSites.push(normalizedSite);
-                chrome.storage.local.set({blockedSites: blockedSites}, function() {
-                    updateBlockedSitesList(blockedSites);
+        const siteData = {
+            nombre_pagina: normalizedSite,
+            descr_pagina: 'Bloqueado desde la extensión',
+            url_pagina: site
+        };
+
+        fetch('http://localhost:4444/api/paginaWeb/bloquearPagina', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(siteData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.msg) {
+                chrome.storage.local.get(['blockedSites'], function(result) {
+                    let blockedSites = result.blockedSites || [];
+                    if (!blockedSites.includes(normalizedSite)) {
+                        blockedSites.push(normalizedSite);
+                        chrome.storage.local.set({blockedSites: blockedSites}, function() {
+                            updateBlockedSitesList(blockedSites);
+                        });
+                    }
                 });
+            } else {
+                console.error('Error blocking site:', data.error);
             }
-        });
+        })
+        .catch(error => console.error('Error blocking site:', error));
     }
 
     function removeBlockedSite(site) {
+        const token = localStorage.getItem('token');
         const normalizedSite = normalizeUrl(site);
-        chrome.storage.local.get(['blockedSites'], function(result) {
-            let blockedSites = result.blockedSites || [];
-            blockedSites = blockedSites.filter(s => s !== normalizedSite);
-            chrome.storage.local.set({blockedSites: blockedSites}, function() {
-                updateBlockedSitesList(blockedSites);
-            });
-        });
+
+        fetch(`http://localhost:4444/api/paginaWeb/desbloquearPagina/${normalizedSite}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.msg) {
+                chrome.storage.local.get(['blockedSites'], function(result) {
+                    let blockedSites = result.blockedSites || [];
+                    blockedSites = blockedSites.filter(s => s !== normalizedSite);
+                    chrome.storage.local.set({blockedSites: blockedSites}, function() {
+                        updateBlockedSitesList(blockedSites);
+                    });
+                });
+            } else {
+                console.error('Error unblocking site:', data.error);
+            }
+        })
+        .catch(error => console.error('Error unblocking site:', error));
     }
 
     function updateBlockedSitesList(sites) {
@@ -107,4 +155,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 adultSites.forEach(site => removeBlockedSite(site));
             });
     }
+
+    // Escuchar el mensaje para actualizar la lista de sitios bloqueados
+    chrome.runtime.onMessage.addListener((message) => {
+        if (message.action === "refreshBlockedSites") {
+            loadBlockedSites();
+        }
+    });
 });
